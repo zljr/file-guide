@@ -1,0 +1,357 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    'Segoe UI',
+    'Microsoft YaHei',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #303133;
+  background: #f5f7fa;
+  overflow: hidden;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 52px;
+  flex: none;
+  background: #1d2b3a;
+  color: #fff;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.app-header .el-button {
+  color: #cfd8e3;
+}
+
+.app-header .el-button:hover {
+  color: #fff;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-aside {
+  width: 340px;
+  flex: none;
+  background: #fff;
+  border-right: 1px solid #e4e7ed;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.view-tabs {
+  padding: 14px 24px 0;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #ebeef5;
+  flex: none;
+}
+
+.sidebar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+}
+
+.sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar .el-tree {
+  background: transparent;
+  padding: 6px 4px;
+  --el-tree-node-content-height: 30px;
+  font-size: 13px;
+}
+
+/* 树节点：图标 + 名称 */
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-right: 6px;
+}
+
+.tree-icon {
+  flex: none;
+}
+
+.tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 文件节点（叶子）：仅查看，标签淡灰、不给"禁止"手势 */
+.sidebar .el-tree-node__content:has(.el-tree-node__expand-icon.is-leaf) {
+  cursor: default;
+}
+
+.sidebar .el-tree-node__content:has(.el-tree-node__expand-icon.is-leaf) .tree-label {
+  color: #909399;
+}
+
+/* ===== Action panel ===== */
+.panel {
+  max-width: 860px;
+  padding: 20px 24px 32px;
+}
+
+.panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.panel-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 6px;
+  color: #409eff;
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+
+.path-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+.mode-seg {
+  margin-bottom: 18px;
+}
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.source-name {
+  font-size: 12px;
+  color: #67c23a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: #909399;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.name-row .el-input {
+  flex: 1;
+  min-width: 220px;
+}
+
+.ext-input {
+  width: 140px;
+}
+
+.ext-select {
+  width: 130px;
+}
+
+.validate-line {
+  min-height: 22px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.validate-line .ok {
+  color: #67c23a;
+}
+
+.validate-line .bad {
+  color: #f56c6c;
+}
+
+.suggestions {
+  margin-top: 16px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px 16px 16px;
+}
+
+.sug-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.sug-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.confidence {
+  font-size: 12px;
+  color: #909399;
+}
+
+.sug-alert {
+  margin-bottom: 10px;
+}
+
+.sug-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sug-list .el-radio {
+  height: auto;
+  align-items: flex-start;
+  margin-right: 0;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.sug-uncertain .sug-name {
+  color: #e6a23c;
+}
+
+.sug-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.sug-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sug-progress {
+  width: 100%;
+}
+
+.sug-progress .el-progress__text {
+  font-size: 11px !important;
+}
+
+.join-row {
+  margin-top: 18px;
+  display: flex;
+  gap: 0;
+}
+
+/* ===== Search panel ===== */
+.search-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.search-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-trail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.trail-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Settings dialog ===== */
+.dlg-hint {
+  font-size: 12px;
+  color: #909399;
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+
+.dlg-status {
+  font-size: 13px;
+  margin: 0 0 12px;
+  color: #67c23a;
+}
+
+.dlg-status.unset {
+  color: #e6a23c;
+}
