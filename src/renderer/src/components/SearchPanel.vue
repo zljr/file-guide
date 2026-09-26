@@ -5,10 +5,9 @@
     </div>
 
     <template v-else>
-      <div class="panel-path">
-        <el-icon><Search /></el-icon>
-        <span class="path-text" :title="dir ?? ''">{{ (dir ?? '') + '‎' }}</span>
-      </div>
+      <PathBar :path="dir" @navigate="jumpTo">
+        <template #icon><Search /></template>
+      </PathBar>
 
       <div class="mode-seg">
         <el-radio-group v-model="searchKind" size="small">
@@ -102,7 +101,7 @@
             class="sug-item"
             border
           >
-            <div class="sug-content">
+            <div class="sug-content" @dblclick="openOption(opt.path)">
               <div class="sug-name" :title="opt.path">{{ opt.name }}</div>
               <el-progress
                 class="sug-progress"
@@ -157,8 +156,10 @@ import { ElMessage } from 'element-plus'
 import { Back, FolderOpened, Location, Right, Search } from '@element-plus/icons-vue'
 import type { SearchMode, SearchStepResult } from '@shared/types'
 import AutoSearchPanel from './AutoSearchPanel.vue'
+import PathBar from './PathBar.vue'
 
 const props = defineProps<{ currentPath: string | null }>()
+const emit = defineEmits<{ navigate: [path: string] }>()
 
 /** 查找方式：auto = 一键查找（全自动下钻）；step = 逐层查找（人工逐步） */
 const searchKind = ref<'auto' | 'step'>('auto')
@@ -273,6 +274,14 @@ async function goUp(): Promise<void> {
   await startSearch()
 }
 
+/** 路径栏手动跳转：重置下钻状态，并同步为全局工作目录 */
+function jumpTo(path: string): void {
+  dir.value = path
+  trail.value = []
+  clearResult()
+  emit('navigate', path)
+}
+
 async function revealSelected(): Promise<void> {
   if (!selected.value || selected.value === UNCERTAIN) return
   revealLoading.value = true
@@ -283,6 +292,14 @@ async function revealSelected(): Promise<void> {
     }
   } finally {
     revealLoading.value = false
+  }
+}
+
+/** 双击搜索结果：文件夹在资源管理器中打开该文件夹，文件用系统默认程序打开 */
+async function openOption(path: string): Promise<void> {
+  const res = await window.api.open(path)
+  if (!res.ok) {
+    ElMessage.error(res.message)
   }
 }
 </script>

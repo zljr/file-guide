@@ -5,10 +5,9 @@
     </div>
 
     <template v-else>
-      <div class="panel-path">
-        <el-icon><FolderOpened /></el-icon>
-        <span class="path-text" :title="currentPath">{{ currentPath + '‎' }}</span>
-      </div>
+      <PathBar :path="currentPath" @navigate="emit('navigate', $event)">
+        <template #icon><FolderOpened /></template>
+      </PathBar>
 
       <el-radio-group v-model="mode" class="mode-seg">
         <el-radio-button value="file">新建文件</el-radio-button>
@@ -111,7 +110,7 @@
             class="sug-item"
             border
           >
-            <div class="sug-content">
+            <div class="sug-content" @dblclick="openInExplorer(opt.path)">
               <div class="sug-name" :title="opt.path">{{ opt.folder }}</div>
               <el-progress
                 class="sug-progress"
@@ -143,6 +142,20 @@
           >
             加入（创建到选中的文件夹）
           </el-button>
+          <el-button type="primary" :icon="Right" :disabled="!canInspect" @click="enterSelected">
+            进入子目录
+          </el-button>
+          <el-button type="primary" :icon="Back" @click="goUp">
+            返回上一层
+          </el-button>
+          <el-button
+            type="primary"
+            :icon="FolderOpened"
+            :disabled="!canInspect"
+            @click="openSelected"
+          >
+            在资源管理器中打开
+          </el-button>
         </div>
       </div>
     </template>
@@ -152,7 +165,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Check, CircleCheck, MagicStick, Upload } from '@element-plus/icons-vue'
+import {
+  Back,
+  Check,
+  CircleCheck,
+  FolderOpened,
+  MagicStick,
+  Right,
+  Upload
+} from '@element-plus/icons-vue'
 import { PRESET_EXTENSIONS } from '@shared/types'
 import type { ExtMode, SuggestResult } from '@shared/types'
 import {
@@ -161,11 +182,16 @@ import {
   validateFileName,
   validateFolderName
 } from '@shared/validate'
+import PathBar from './PathBar.vue'
 
 type Mode = 'file' | 'folder' | 'upload'
 
 const props = defineProps<{ currentPath: string | null }>()
-const emit = defineEmits<{ committed: []; 'need-settings': [] }>()
+const emit = defineEmits<{
+  committed: []
+  'need-settings': []
+  navigate: [path: string]
+}>()
 
 const LOW_CONFIDENCE = 0.4
 /** 推荐目录最多展示 5 个（请求仍会带上全部子文件夹 + uncertain 选项） */
@@ -213,12 +239,24 @@ const canJoin = computed(
     selectedPath.value !== UNCERTAIN
 )
 
+/** 选中的是真实推荐目录（非「不确定」行）时才能预览/打开 */
+const canInspect = computed(
+  () => selectedPath.value !== null && selectedPath.value !== UNCERTAIN
+)
+
+/** 「进入子目录」跳转后，随路径切换自动发起一次推荐请求 */
+let suggestAfterNavigate = false
+
 // 切换目录或模式后，旧建议不再适用
 watch(
   () => props.currentPath,
   () => {
     suggestions.value = null
     selectedPath.value = null
+    if (suggestAfterNavigate) {
+      suggestAfterNavigate = false
+      void getSuggestions()
+    }
   }
 )
 watch(mode, () => {
@@ -305,5 +343,43 @@ async function commit(target: string | null): Promise<void> {
   } finally {
     commitLoading.value = false
   }
+}
+
+/** 双击推荐项 / 按钮：在资源管理器中打开目标文件夹 */
+async function openInExplorer(path: string): Promise<void> {
+  const res = await window.api.open(path)
+  if (!res.ok) {
+    ElMessage.error(res.message)
+  }
+}
+
+function openSelected(): void {
+  if (selectedPath.value && selectedPath.value !== UNCERTAIN) {
+    void openInExplorer(selectedPath.value)
+  }
+}
+
+/** 进入子目录：把选中的推荐文件夹作为新的工作目录，并自动发起一次推荐请求 */
+function enterSelected(): void {
+  if (selectedPath.value && selectedPath.value !== UNCERTAIN) {
+    suggestAfterNavigate = true
+    emit('navigate', selectedPath.value)
+  }
+}
+
+/** 返回上一层：跳到当前目录的父目录（根目录时提示），并自动发起一次推荐请求 */
+async function goUp(): Promise<void> {
+  if (!props.currentPath) return
+  const res = await window.api.parentDir(props.currentPath)
+  if (!res.ok) {
+    ElMessage.error(res.message)
+    return
+  }
+  if (!res.data) {
+    ElMessage.info('已经在最顶层目录了')
+    return
+  }
+  suggestAfterNavigate = true
+  emit('navigate', res.data.path)
 }
 </script>

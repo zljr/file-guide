@@ -135,9 +135,9 @@ body {
   white-space: nowrap;
 }
 
-/* 文件节点（叶子）：仅查看，标签淡灰、不给"禁止"手势 */
+/* 文件节点（叶子）：不可选中/展开，但可双击用默认程序打开 */
 .sidebar .el-tree-node__content:has(.el-tree-node__expand-icon.is-leaf) {
-  cursor: default;
+  cursor: pointer;
 }
 
 .sidebar .el-tree-node__content:has(.el-tree-node__expand-icon.is-leaf) .tree-label {
@@ -171,11 +171,27 @@ body {
 }
 
 .path-text {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   direction: rtl;
   text-align: left;
+}
+
+/* 路径栏：名称靠左占满，编辑按钮靠右，整体垂直居中 */
+/* 文字按钮（编辑/取消）与路径、图标同色，避免突兀 */
+.path-btn {
+  flex: none;
+  --el-button-text-color: #409eff;
+  --el-button-hover-text-color: #66b1ff;
+  --el-button-hover-bg-color: transparent;
+}
+
+.path-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .mode-seg {
