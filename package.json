@@ -4,7 +4,6 @@
   "description": "AI-assisted file organizer built on Electron + Vue 3 + TypeSafe",
   "main": "./out/main/index.js",
   "author": "zljr",
-  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",
