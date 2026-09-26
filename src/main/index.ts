@@ -26,7 +26,9 @@ import {
   FsOpError,
   getDrives,
   listEntries,
-  listFolders
+  listFolders,
+  parentDir,
+  resolveDir
 } from './fsService'
 import { NoApiKeyError, suggestFolder } from './typesafe'
 
@@ -102,6 +104,10 @@ function registerIpc(): void {
 
   handle('fs:listEntries', (dirPath: string): Promise<FsNode[]> => listEntries(dirPath))
 
+  handle('fs:resolveDir', (dirPath: string): Promise<{ path: string }> => resolveDir(dirPath))
+
+  handle('fs:parentDir', (dirPath: string): { path: string } | null => parentDir(dirPath))
+
   handle('fs:pickSourceFile', async (): Promise<{ path: string; name: string } | null> => {
     const win = BrowserWindow.getAllWindows()[0]
     const result = await dialog.showOpenDialog(win, {
@@ -148,6 +154,15 @@ function registerIpc(): void {
 
   handle('fs:reveal', (targetPath: string): null => {
     shell.showItemInFolder(targetPath)
+    return null
+  })
+
+  handle('fs:open', async (targetPath: string): Promise<null> => {
+    // 文件夹 → 资源管理器窗口打开该文件夹；文件 → 系统默认程序打开
+    const errMsg = await shell.openPath(targetPath)
+    if (errMsg) {
+      throw new FsOpError('OPEN_FAILED', `无法打开目标：${errMsg}`)
+    }
     return null
   })
 }

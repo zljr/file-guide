@@ -29,8 +29,9 @@
             :current-path="selectedDir"
             @committed="treeRef?.reload()"
             @need-settings="settingsVisible = true"
+            @navigate="selectedDir = $event"
           />
-          <SearchPanel v-else :current-path="selectedDir" />
+          <SearchPanel v-else :current-path="selectedDir" @navigate="selectedDir = $event" />
         </KeepAlive>
       </main>
     </div>

@@ -16,7 +16,7 @@
         @node-click="onNodeClick"
       >
         <template #default="{ data, node }">
-          <span class="tree-node" :title="data.path">
+          <span class="tree-node" :title="data.path" @dblclick.stop="openNode(data)">
             <el-icon :size="14" class="tree-icon" :color="nodeColor(data, node)">
               <component :is="nodeIcon(data, node)" />
             </el-icon>
@@ -103,6 +103,14 @@ function onNodeClick(data: TreeNode): void {
   // 文件节点仅展示，不能被选为工作目录
   if (data.isDirectory) {
     emit('select', data.path)
+  }
+}
+
+/** 双击节点：文件夹在资源管理器中打开该文件夹，文件用系统默认程序打开 */
+async function openNode(data: TreeNode): Promise<void> {
+  const res = await window.api.open(data.path)
+  if (!res.ok) {
+    ElMessage.error(res.message)
   }
 }
 

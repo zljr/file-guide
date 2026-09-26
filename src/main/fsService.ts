@@ -3,7 +3,7 @@
  * 全部运行在主进程，IPC 层负责统一错误包装。
  */
 import { promises as fsp } from 'fs'
-import { join } from 'path'
+import { dirname, isAbsolute, join, resolve } from 'path'
 import type { CreateResult, DriveInfo, FsNode } from '@shared/types'
 
 const DRIVE_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -62,6 +62,42 @@ export class FsOpError extends Error {
     super(message)
     this.code = code
   }
+}
+
+/** 校验并规范化用户手动输入的目录路径（路径栏「编辑」跳转用） */
+export async function resolveDir(input: string): Promise<{ path: string }> {
+  let trimmed = input.trim()
+  if (!trimmed) {
+    throw new FsOpError('EMPTY_PATH', '路径不能为空')
+  }
+  // "D:" 视为 "D:\"
+  if (/^[A-Za-z]:$/.test(trimmed)) {
+    trimmed += '\\'
+  }
+  if (!isAbsolute(trimmed)) {
+    throw new FsOpError('INVALID_PATH', '请输入完整路径，如 D:\\分盘软件')
+  }
+  const normalized = resolve(trimmed)
+  try {
+    const stat = await fsp.stat(normalized)
+    if (!stat.isDirectory()) {
+      throw new FsOpError('NOT_A_DIR', `“${normalized}” 不是文件夹`)
+    }
+  } catch (err) {
+    if (err instanceof FsOpError) throw err
+    throw new FsOpError('NOT_FOUND', `找不到文件夹：“${normalized}”`)
+  }
+  return { path: normalized }
+}
+
+/** 取目录的父目录（根目录如 C:\ 返回 null）——「返回上一层」用 */
+export function parentDir(dirPath: string): { path: string } | null {
+  const normalized = resolve(dirPath)
+  const parent = dirname(normalized)
+  if (parent === normalized) {
+    return null
+  }
+  return { path: parent }
 }
 
 /** 把底层错误翻译成用户可读的提示 */
