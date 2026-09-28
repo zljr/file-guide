@@ -30,7 +30,20 @@
 
   *示例：输入名称「vue学习.md」并点击「获取建议」后，AI 推荐目录按概率排序（前端学习 67% / 前端 31% / … / 不确定 2%），点选推荐项后点击「加入」即可创建到该文件夹。*
 
-**3. 逐层查找（右侧「查找」页签）**
+**3. 一键查找（右侧「查找」页签 · 默认，全自动）**
+
+解决"文件千千万、只记得大概，但不想一步步点"的查找问题——只给两样信息：**名称关键词**（可选）+ **大概是干啥的**（可选），系统**全自动**完成下钻探索，一次性返回 **Top10 最相关的文件/文件夹**（混合排序，可切换纯文件 / 纯文件夹），全程无需人工参与：
+
+- 算法：目录树上的 **best-first 搜索（优先队列式 beam search）**，每个目录一次 TypeSafe 调用并行评估三类问题：
+  - **pick**（Choice）：目标最可能是本层哪个直接子项？（>250 候选自动分批）
+  - **container**（Choice）：目标若不在直接子项里，最可能在哪个子文件夹的更深层？（决定下钻分支）
+  - **target_here**（Noul）：目标就在这层直接子项中吗？
+- 所有超过噪声门槛（1%）的分支进**全局优先队列**、每轮并行评估 Top2——排名靠后的分支不会在浅层被丢掉，只要预算够就有机会被探索；预算约束：最多 24 次 API 调用 / 深度 6 层，用满预算才停
+- 命中得分 = **层内概率 × 路径因子的深度几何折损**（pathFactor^(1/深度)），跨层可比且不歧视深埋目标，据此取全局 Top10
+- 文件夹候选**全量**附带子项名称采样（不截断），让模型能判断"这个文件夹大概是干啥的"；提示词明确"名称可能是拼音或英文（原神 = Genshin Impact = yuanshen），按内容/用途匹配而非名称字面相似"
+- 实时进度回报（正在看哪个目录、已用几次调用）；结果展示每项概率、路径得分、深度与「在资源管理器中显示」
+
+**4. 逐层查找（右侧「查找」页签 · 手动模式）**
 
 解决"文件千千万、只记得大概"的查找问题——把全局搜索分解为**逐层下钻**（架构参考 TypeSafe 官方 [Hierarchical Classification](https://docs.typesafe.ai/cookbooks/hierarchical_classification)）：
 
@@ -47,7 +60,7 @@
 
   *示例：以描述「原神截图」在 E:\yuanshen_install 下查找文件夹——AI 给出候选概率（Genshin Impact 34% / …）、置信度与"在这层可能性"，模型没把握时自动选中「不确定」并提示换关键词或回上一层换分支。*
 
-**4. 设置**
+**5. 设置**
 
 - 右上角齿轮填入 TypeSafe API Key，保存在本机用户数据目录 `config.json`
 - Key 仅由主进程读取用于请求；渲染进程永远只能拿到掩码（如 `sk-****abcd`）
@@ -150,7 +163,8 @@ file-guide/
    │  ├─ config.ts              #   API Key 持久化（userData/config.json），对外只出掩码
    │  ├─ fsService.ts           #   盘符检测、listFolders/listEntries、创建/复制、错误码翻译
    │  ├─ typesafe.ts            #   systemOneRequest（鉴权/超时/HTTP错误统一处理）+ 新建建议（Choice + uncertain）
-   │  └─ search.ts              #   逐层查找（Choice + Noul、本地预筛、>250 分批并行）
+   │  ├─ search.ts              #   逐层查找（Choice + Noul、本地预筛、>250 分批并行）
+   │  └─ autoSearch.ts          #   一键查找：beam search 全自动下钻（pick + container + Noul，Top10）
    ├─ preload/
    │  ├─ index.ts               #   contextBridge 暴露类型化 FileGuideApi（IPC 唯一通道）
    │  └─ index.d.ts             #   Window.api 全局类型声明
@@ -164,7 +178,8 @@ file-guide/
          ├─ components/
          │  ├─ SidebarTree.vue  #   懒加载目录树（文件禁用、自定义节点图标）
          │  ├─ ActionPanel.vue  #   新建/上传面板 + AI 归档建议（Top5 + uncertain + 加入）
-         │  ├─ SearchPanel.vue  #   逐层查找面板（关键词/描述、下钻、回溯、资源管理器定位）
+         │  ├─ AutoSearchPanel.vue # 一键查找面板（关键词/描述 → 自动下钻 → Top10 结果 + 进度）
+         │  ├─ SearchPanel.vue  #   查找页签（一键/逐层两种模式切换）+ 逐层查找面板（下钻、回溯、定位）
          │  └─ SettingsDialog.vue # API Key 设置
          └─ assets/main.css     #   全局样式
 ```
@@ -201,6 +216,8 @@ file-guide/
 | `fs:reveal` | 在资源管理器中显示目标 |
 | `typesafe:suggest` | 新建建议：当前目录子文件夹 → Choice（含 uncertain） |
 | `typesafe:searchStep` | 逐层查找单步：Choice（>250 分批）+ Noul 门卫 |
+| `search:auto` | 一键查找：beam search 全自动下钻，返回全局 Top10 |
+| `search:autoProgress` | 一键查找进度事件（主进程 → 渲染进程推送，随 `search:auto` 生命周期收发） |
 
 ### TypeSafe 请求示例（新建建议）
 
@@ -224,7 +241,7 @@ POST https://api.typesafe.ai/v1/systemone
 // 响应：answers.best_folder = { choice, confidence, probabilities: { frontend: 0.93, backend: 0, …, uncertain: 0.07 } }
 ```
 
-查找（`searchStep`）在同一次调用里并行问 `best_0…best_n`（分批 Choice）与 `target_here`（Noul），响应合并逻辑见 [src/main/search.ts](src/main/search.ts)。
+查找（`searchStep`）在同一次调用里并行问 `best_0…best_n`（分批 Choice）与 `target_here`（Noul），响应合并逻辑见 [src/main/search.ts](src/main/search.ts)。一键查找（`autoSearch`）在同一调用里并行问 `pick_0…pick_n`（分批 Choice）、`container`（Choice）与 `target_here`（Noul），beam search 的推进与合并逻辑见 [src/main/autoSearch.ts](src/main/autoSearch.ts)。
 
 ### 关键设计决策
 
@@ -233,3 +250,4 @@ POST https://api.typesafe.ai/v1/systemone
 - **IPC 传参禁用响应式对象**：Vue 的 Proxy 无法结构化克隆（会报 `An object could not be cloned`），跨 IPC 的数组一律浅拷贝
 - **查找的 token 约束**：目录切换只换起点不触发请求；本地预筛先行；文件模式无关键词且候选过多时直接拒绝，杜绝无效消耗
 - **树形分解 + 官方并行批处理**：255 选项上限是"每题"的，逐层下钻把它变成每层约束；超限用同调用多 question 并行分批
+- **一键查找的得分口径与预算**：层内概率跨目录不可直接比较，命中得分 = 层内概率 × 路径因子的深度几何折损（pathFactor^(1/深度)）折算为全局可比得分再取 Top10——既跨层可比，又不像连乘那样把深埋目标压出榜单；best-first 优先队列 + 24 次调用 / 深度 6 的预算防止 token 失控，预算耗尽时明确提示"仍有分支未探索"

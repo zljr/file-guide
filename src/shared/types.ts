@@ -154,3 +154,65 @@ export interface SearchStepResult {
   filteredByKeyword: boolean
   message?: string
 }
+
+/* ===== 一键查找（全自动 AI 下钻，无需人工逐步参与） ===== */
+
+/** 一键查找的目标类型：both = 文件与文件夹混合排序 */
+export type AutoSearchTarget = 'both' | 'file' | 'folder'
+
+export interface AutoSearchPayload {
+  /** 检索范围：左侧选中目录的整个子树 */
+  rootPath: string
+  /** 目标类型：文件 / 文件夹 / 混合 */
+  target: AutoSearchTarget
+  /** 名称关键词（可为空串） */
+  keyword: string
+  /** 自然语言描述「大概是干啥的」（可为空串）；与 keyword 至少填一个 */
+  description: string
+}
+
+export interface AutoSearchHit {
+  name: string
+  path: string
+  kind: EntryKind
+  /** 该层 Choice 给出的层内概率 0–1（目标是该层这个直接子项） */
+  probability: number
+  /** 全局可比得分：层内概率 × 沿途下钻概率（跨层排序依据） */
+  score: number
+  /** 命中所在层 Choice 的置信度 0–1 */
+  confidence: number
+  /** 命中所在层 Noul：目标就在这层直接子项中的程度；未返回时为 null */
+  targetHere: number | null
+  /** 命中时的深度（搜索起点为 0） */
+  depth: number
+  /** 命中时所在目录的完整路径 */
+  parentPath: string
+}
+
+/** 查找过程中的进度回报（IPC 事件 search:autoProgress） */
+export interface AutoSearchProgress {
+  /** 当前阶段的中文描述 */
+  message: string
+  /** 已使用的 API 调用次数 */
+  callsUsed: number
+  /** 已评估过的目录数 */
+  nodesVisited: number
+  /** 正在下钻的目录轨迹（名称） */
+  trail: string[]
+}
+
+export interface AutoSearchResult {
+  /** 全局 Top10（按 score 降序） */
+  hits: AutoSearchHit[]
+  /** 模型整体不确定（无命中或最强命中概率过低） */
+  uncertain: boolean
+  /** 实际使用的 API 调用次数 */
+  callsUsed: number
+  /** 实际评估过的目录数 */
+  nodesVisited: number
+  /** 是否因调用/深度预算提前停止（仍有分支未探索） */
+  budgetLimited: boolean
+  /** 耗时（毫秒） */
+  elapsedMs: number
+  message?: string
+}

@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   ApiResult,
+  AutoSearchPayload,
+  AutoSearchProgress,
+  AutoSearchResult,
   CommitPayload,
   ConfigInfo,
   CreateResult,
@@ -24,6 +27,14 @@ export interface FileGuideApi {
   suggest(payload: SuggestPayload): Promise<ApiResult<SuggestResult>>
   /** 逐层查找：单层搜索（文件夹或文件） */
   searchStep(payload: SearchPayload): Promise<ApiResult<SearchStepResult>>
+  /**
+   * 一键查找：全自动下钻，返回全局 Top10。
+   * onProgress 可选，接收查找过程中的进度回报（search:autoProgress 事件）。
+   */
+  autoSearch(
+    payload: AutoSearchPayload,
+    onProgress?: (progress: AutoSearchProgress) => void
+  ): Promise<ApiResult<AutoSearchResult>>
   /** 在资源管理器中显示目标（查找的结果动作） */
   reveal(targetPath: string): Promise<ApiResult<null>>
 }
@@ -38,6 +49,20 @@ const api: FileGuideApi = {
   commit: (payload) => ipcRenderer.invoke('fs:commit', payload),
   suggest: (payload) => ipcRenderer.invoke('typesafe:suggest', payload),
   searchStep: (payload) => ipcRenderer.invoke('typesafe:searchStep', payload),
+  autoSearch: (payload, onProgress) => {
+    const channel = 'search:autoProgress'
+    const listener = (_event: Electron.IpcRendererEvent, progress: AutoSearchProgress): void => {
+      onProgress?.(progress)
+    }
+    if (onProgress) {
+      ipcRenderer.on(channel, listener)
+    }
+    return ipcRenderer.invoke('search:auto', payload).finally(() => {
+      if (onProgress) {
+        ipcRenderer.removeListener(channel, listener)
+      }
+    })
+  },
   reveal: (targetPath) => ipcRenderer.invoke('fs:reveal', targetPath)
 }
 

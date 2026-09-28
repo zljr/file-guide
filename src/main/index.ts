@@ -6,6 +6,9 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import type {
   ApiResult,
+  AutoSearchPayload,
+  AutoSearchProgress,
+  AutoSearchResult,
   CommitPayload,
   ConfigInfo,
   CreateResult,
@@ -17,6 +20,7 @@ import type {
   SuggestResult
 } from '@shared/types'
 import { validateFileName, validateFolderName } from '@shared/validate'
+import { autoSearch } from './autoSearch'
 import { getApiKey, getConfigInfo, saveApiKey } from './config'
 import { searchStep } from './search'
 import {
@@ -70,23 +74,28 @@ function createWindow(): void {
   }
 }
 
+/** 把任意异常包成 ApiResult 错误结构 */
+function toApiError(err: unknown): ApiResult<never> {
+  if (err instanceof FsOpError) {
+    return { ok: false, code: err.code, message: err.message }
+  }
+  if (err instanceof NoApiKeyError) {
+    return { ok: false, code: 'NO_API_KEY', message: err.message }
+  }
+  return {
+    ok: false,
+    code: 'UNKNOWN',
+    message: `发生未知错误：${err instanceof Error ? err.message : String(err)}`
+  }
+}
+
 /** 把 IPC 处理函数统一包成 ApiResult，渲染进程不需要 try/catch */
 function handle<I, T>(channel: string, fn: (payload: I) => Promise<T> | T): void {
   ipcMain.handle(channel, async (_event, payload: I): Promise<ApiResult<T>> => {
     try {
       return { ok: true, data: await fn(payload) }
     } catch (err) {
-      if (err instanceof FsOpError) {
-        return { ok: false, code: err.code, message: err.message }
-      }
-      if (err instanceof NoApiKeyError) {
-        return { ok: false, code: 'NO_API_KEY', message: err.message }
-      }
-      return {
-        ok: false,
-        code: 'UNKNOWN',
-        message: `发生未知错误：${err instanceof Error ? err.message : String(err)}`
-      }
+      return toApiError(err)
     }
   })
 }
@@ -144,6 +153,23 @@ function registerIpc(): void {
 
   handle('typesafe:searchStep', (payload: SearchPayload): Promise<SearchStepResult> =>
     searchStep(payload, getApiKey())
+  )
+
+  // 一键查找：全程自动下钻，通过 search:autoProgress 事件流回报进度
+  ipcMain.handle(
+    'search:auto',
+    async (event, payload: AutoSearchPayload): Promise<ApiResult<AutoSearchResult>> => {
+      try {
+        const data = await autoSearch(payload, getApiKey(), (progress: AutoSearchProgress) => {
+          if (!event.sender.isDestroyed()) {
+            event.sender.send('search:autoProgress', progress)
+          }
+        })
+        return { ok: true, data }
+      } catch (err) {
+        return toApiError(err)
+      }
+    }
   )
 
   handle('fs:reveal', (targetPath: string): null => {

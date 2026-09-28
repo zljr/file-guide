@@ -10,6 +10,17 @@
         <span class="path-text" :title="dir ?? ''">{{ (dir ?? '') + '‎' }}</span>
       </div>
 
+      <div class="mode-seg">
+        <el-radio-group v-model="searchKind" size="small">
+          <el-radio-button value="auto">一键查找（自动）</el-radio-button>
+          <el-radio-button value="step">逐层查找（手动）</el-radio-button>
+        </el-radio-group>
+      </div>
+
+      <!-- 一键查找：只给关键词 + 用途描述，自动下钻返回 Top10 -->
+      <AutoSearchPanel v-if="searchKind === 'auto'" :current-path="currentPath" />
+
+      <template v-else>
       <div class="search-inputs">
         <el-input
           v-model="keyword"
@@ -135,6 +146,7 @@
           </el-button>
         </div>
       </div>
+      </template>
     </template>
   </div>
 </template>
@@ -144,8 +156,12 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Back, FolderOpened, Location, Right, Search } from '@element-plus/icons-vue'
 import type { SearchMode, SearchStepResult } from '@shared/types'
+import AutoSearchPanel from './AutoSearchPanel.vue'
 
 const props = defineProps<{ currentPath: string | null }>()
+
+/** 查找方式：auto = 一键查找（全自动下钻）；step = 逐层查找（人工逐步） */
+const searchKind = ref<'auto' | 'step'>('auto')
 
 /** "uncertain" 行的哨兵值：选中它时不能进入/显示 */
 const UNCERTAIN = '__uncertain__'
